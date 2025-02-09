@@ -1,0 +1,13 @@
+[Unit]
+Description=Spotigo Now Playing Logger
+After=dbus.service
+Requires=dbus.service
+
+[Service]
+WorkingDirectory=%t/spotigo
+RuntimeDirectory=spotigo
+ExecStart=%h/.local/bin/spotigo
+Restart=on-abnormal
+
+[Install]
+WantedBy=default.target
