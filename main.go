@@ -4,15 +4,17 @@ import (
 	"fmt"
 	"log"
 	"os"
+
 	"github.com/godbus/dbus/v5"
 )
 
 const (
-	spotifyBusName  = "org.mpris.MediaPlayer2.spotify"
-	spotifyObjPath  = "/org/mpris/MediaPlayer2"
-	spotifyIface    = "org.freedesktop.DBus.Properties"
-	metadataProp    = "org.mpris.MediaPlayer2.Player.Metadata"
-	outputFile      = "spotify_now_playing.txt"
+	spotifyBusName     = "org.mpris.MediaPlayer2.spotify"
+	spotifyObjPath     = "/org/mpris/MediaPlayer2"
+	spotifyIface       = "org.freedesktop.DBus.Properties"
+	metadataProp       = "org.mpris.MediaPlayer2.Player.Metadata"
+	playbackStatusProp = "org.mpris.MediaPlayer2.Player.PlaybackStatus"
+	outputFile         = "spotify_now_playing.txt"
 )
 
 func main() {
@@ -35,6 +37,13 @@ func main() {
 	var lastTrack string
 	for signal := range signalChan {
 		if signal.Path == dbus.ObjectPath(spotifyObjPath) && signal.Name == "org.freedesktop.DBus.Properties.PropertiesChanged" {
+			playbackStatus := getSpotifyPlaybackStatus(conn)
+			if playbackStatus == "Paused" {
+				clearFile()
+				lastTrack = ""
+				continue
+			}
+
 			metadata := getSpotifyMetadata(conn)
 			if metadata != "" && metadata != lastTrack {
 				lastTrack = metadata
@@ -66,6 +75,17 @@ func getSpotifyMetadata(conn *dbus.Conn) string {
 	return fmt.Sprintf("%s - %s", title, artist)
 }
 
+func getSpotifyPlaybackStatus(conn *dbus.Conn) string {
+	obj := conn.Object(spotifyBusName, dbus.ObjectPath(spotifyObjPath))
+	variant, err := obj.GetProperty(playbackStatusProp)
+	if err != nil {
+		log.Printf("Failed to get Spotify playback status: %v", err)
+		return ""
+	}
+	status, _ := variant.Value().(string)
+	return status
+}
+
 func writeToFile(content string) {
 	file, err := os.Create(outputFile)
 	if err != nil {
@@ -75,4 +95,14 @@ func writeToFile(content string) {
 	defer file.Close()
 	file.WriteString(content + "\n")
 	log.Printf("Updated file: %s", content)
+}
+
+func clearFile() {
+	file, err := os.Create(outputFile)
+	if err != nil {
+		log.Printf("Failed to clear file: %v", err)
+		return
+	}
+	defer file.Close()
+	log.Println("File cleared due to playback pause")
 }
