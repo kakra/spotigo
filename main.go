@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"path/filepath"
 
 	"github.com/godbus/dbus/v5"
 )
@@ -19,6 +20,11 @@ const (
 )
 
 func main() {
+	cwd, err := os.Getwd()
+	if err != nil {
+		log.Fatalf("Failed to get working directory: %v", err)
+	}
+
 	conn, err := dbus.SessionBus()
 	if err != nil {
 		log.Fatalf("Failed to connect to D-Bus: %v", err)
@@ -33,6 +39,9 @@ func main() {
 	if err != nil {
 		log.Fatalf("Failed to add D-Bus match rule: %v", err)
 	}
+
+	log.Printf("Writing song metadata to '%s'...", filepath.Join(cwd, outputFile))
+	log.Printf("Writing song cover URL to '%s'...", filepath.Join(cwd, coverFile))
 
 	log.Println("Listening for Spotify track changes...")
 	var lastTrack string
