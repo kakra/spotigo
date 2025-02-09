@@ -15,6 +15,7 @@ const (
 	metadataProp       = "org.mpris.MediaPlayer2.Player.Metadata"
 	playbackStatusProp = "org.mpris.MediaPlayer2.Player.PlaybackStatus"
 	outputFile         = "spotify_now_playing.txt"
+	coverFile          = "spotify_cover_url.txt"
 )
 
 func main() {
@@ -44,35 +45,37 @@ func main() {
 				continue
 			}
 
-			metadata := getSpotifyMetadata(conn)
+			metadata, coverURL := getSpotifyMetadata(conn)
 			if metadata != "" && metadata != lastTrack {
 				lastTrack = metadata
-				writeToFile(metadata)
+				writeToFile(metadata, outputFile)
+				writeToFile(coverURL, coverFile)
 			}
 		}
 	}
 }
 
-func getSpotifyMetadata(conn *dbus.Conn) string {
+func getSpotifyMetadata(conn *dbus.Conn) (string, string) {
 	obj := conn.Object(spotifyBusName, dbus.ObjectPath(spotifyObjPath))
 	variant, err := obj.GetProperty(metadataProp)
 	if err != nil {
 		log.Printf("Failed to get Spotify metadata: %v", err)
-		return ""
+		return "", ""
 	}
 
 	metadata, ok := variant.Value().(map[string]dbus.Variant)
 	if !ok {
 		log.Println("Failed to parse metadata")
-		return ""
+		return "", ""
 	}
 	title, _ := metadata["xesam:title"].Value().(string)
 	artist, _ := metadata["xesam:artist"].Value().([]string)
+	coverURL, _ := metadata["mpris:artUrl"].Value().(string)
 
 	if title == "" {
-		return ""
+		return "", ""
 	}
-	return fmt.Sprintf("%s - %s", title, artist)
+	return fmt.Sprintf("%s - %s", title, artist), coverURL
 }
 
 func getSpotifyPlaybackStatus(conn *dbus.Conn) string {
@@ -86,15 +89,15 @@ func getSpotifyPlaybackStatus(conn *dbus.Conn) string {
 	return status
 }
 
-func writeToFile(content string) {
-	file, err := os.Create(outputFile)
+func writeToFile(content string, filename string) {
+	file, err := os.Create(filename)
 	if err != nil {
-		log.Printf("Failed to write file: %v", err)
+		log.Printf("Failed to write file %s: %v", filename, err)
 		return
 	}
 	defer file.Close()
 	file.WriteString(content + "\n")
-	log.Printf("Updated file: %s", content)
+	log.Printf("Updated file %s: %s", filename, content)
 }
 
 func clearFile() {
