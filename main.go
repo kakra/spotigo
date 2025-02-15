@@ -49,7 +49,8 @@ func main() {
 		if signal.Path == dbus.ObjectPath(spotifyObjPath) && signal.Name == "org.freedesktop.DBus.Properties.PropertiesChanged" {
 			playbackStatus := getSpotifyPlaybackStatus(conn)
 			if playbackStatus == "Paused" {
-				clearFile()
+				clearFile(outputFile)
+				clearFile(coverFile)
 				lastTrack = ""
 				continue
 			}
@@ -109,12 +110,12 @@ func writeToFile(content string, filename string) {
 	log.Printf("Updated file %s: %s", filename, content)
 }
 
-func clearFile() {
-	file, err := os.Create(outputFile)
+func clearFile(filename string) {
+	file, err := os.Create(filename)
 	if err != nil {
-		log.Printf("Failed to clear file: %v", err)
+		log.Printf("Failed to clear file %s: %v", filename, err)
 		return
 	}
 	defer file.Close()
-	log.Println("File cleared due to playback pause")
+	log.Printf("File %s cleared due to playback pause", filename)
 }
